@@ -1,8 +1,18 @@
-FROM redis:6-alpine
+FROM alpine:latest AS builder
 
-ARG TARGETARCH
+RUN apk add --no-cache \
+    gcc \
+    make \
+    musl-dev \
+    libc-dev
 
-COPY ratelimit-$TARGETARCH.so /usr/local/lib/ratelimit.so
-COPY redis.conf /usr/local/etc/redis/redis.conf
+WORKDIR /build
+COPY ratelimit.c redismodule.h Makefile ./
+RUN make
+
+FROM redis:8-alpine
+
+COPY --from=builder /build/ratelimit.so /usr/local/lib/ratelimit.so
+COPY docker/redis.conf /usr/local/etc/redis/redis.conf
 
 CMD [ "redis-server", "/usr/local/etc/redis/redis.conf" ]
